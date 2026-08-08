@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/mcpb/main/schemas/mcpb-manifest-v0.4.schema.json",
+  "manifest_version": "0.4",
+  "name": "pir2-academy-instagram-publisher",
+  "display_name": "PiR2 Academy — Instagram Publisher",
+  "version": "0.1.0",
+  "description": "MCP สำหรับ preview และโพสต์ภาพไป Instagram หลังยืนยัน โดย PiR2 Academy",
+  "long_description": "MCP แบบ local สำหรับคลาส Advanced Claude Cowork ใช้เชื่อม Instagram ของผู้เรียน เตรียม preview และโพสต์ภาพหนึ่งภาพหลังได้รับคำยืนยันที่ชัดเจน โดย token เก็บใน credential vault ของระบบปฏิบัติการ",
+  "author": { "name": "PiR2 Academy" },
+  "repository": { "type": "git", "url": "https://github.com/zierocode/pir2-academy-instagram-publisher-mcp" },
+  "homepage": "https://github.com/zierocode/pir2-academy-instagram-publisher-mcp",
+  "documentation": "https://github.com/zierocode/pir2-academy-instagram-publisher-mcp#readme",
+  "support": "https://github.com/zierocode/pir2-academy-instagram-publisher-mcp/issues",
+  "icon": "icon.png",
+  "license": "MIT",
+  "keywords": ["instagram", "canva", "publisher", "pir2-academy"],
+  "compatibility": { "platforms": ["darwin", "win32"], "runtimes": { "node": ">=20" } },
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": { "command": "node", "args": ["${__dirname}/server/index.js"], "env": {} }
+  },
+  "tools": [
+    { "name": "instagram_auth_status", "description": "ตรวจว่า Instagram พร้อมใช้งานหรือยัง โดยไม่โพสต์อะไร" },
+    { "name": "connect_instagram", "description": "เปิดหน้า Instagram เพื่อให้ผู้เรียนเชื่อม account ของตัวเอง" },
+    { "name": "prepare_instagram_post", "description": "ตรวจภาพและ caption แล้วสร้าง preview สำหรับให้ผู้เรียนตรวจ" },
+    { "name": "publish_instagram_post", "description": "โพสต์ preview ที่ผู้เรียนยืนยันแล้วไป Instagram หนึ่งครั้ง" }
+  ]
+}

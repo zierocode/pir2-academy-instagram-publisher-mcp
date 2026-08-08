@@ -1,0 +1,27 @@
+{
+  "name": "pir2-academy-instagram-publisher",
+  "version": "0.1.0",
+  "description": "MCP แบบ local สำหรับ preview และโพสต์ภาพไป Instagram โดย PiR2 Academy",
+  "license": "MIT",
+  "type": "module",
+  "main": "./server/index.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "npm run typecheck && npm test",
+    "smoke": "vitest run tests/smoke/startup.test.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@napi-rs/keyring": "1.3.0",
+    "open": "11.0.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.6",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}
