@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { homedir, platform } from "node:os";
+import { join } from "node:path";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -16,6 +18,9 @@ import {
 import { KeyringTokenStore } from "./auth/token-store-keyring.js";
 import type { InstagramCredential } from "./auth/token-store.js";
 import { errorResult, textResult } from "./contracts.js";
+import { MediaValidator, type ValidatedMedia } from "./media/media-validator.js";
+import { FileIntentStore, type IntentStore } from "./posts/intent-store.js";
+import { preparePost } from "./posts/post-preview.js";
 
 type ToolHandler = (input: unknown, signal?: AbortSignal) => Promise<CallToolResult>;
 
@@ -33,6 +38,8 @@ export interface PublisherServices {
     connect(signal?: AbortSignal): Promise<InstagramIdentity>;
     close?(): Promise<void>;
   };
+  media?: { validate(url: string, signal?: AbortSignal): Promise<ValidatedMedia> };
+  intents?: IntentStore;
 }
 
 const emptyInput = z.object({}).strict();
@@ -98,7 +105,26 @@ export function createToolCatalog(services?: PublisherServices): ToolDefinition[
       description: "ตรวจภาพและ caption แล้วสร้าง preview สำหรับให้ผู้เรียนตรวจ",
       inputSchema: prepareInput,
       annotations: { readOnlyHint: false, destructiveHint: false },
-      handler: unavailable,
+      handler: services?.media && services.intents
+        ? async (input, signal) => {
+            const parsed = prepareInput.parse(input);
+            const credential = await services.oauth.getCredential();
+            if (!credential) return errorResult("ยังไม่ได้เชื่อม Instagram กรุณา connect ก่อน", "AUTH_REQUIRED");
+            const media = await services.media!.validate(parsed.image_url, signal);
+            const preview = await preparePost({
+              imageUrl: parsed.image_url,
+              caption: parsed.caption,
+              altText: parsed.alt_text,
+              identity: { userId: credential.userId, username: credential.username },
+              media,
+              store: services.intents!,
+            });
+            return textResult(
+              `สร้าง preview แล้วสำหรับ ${preview.account}\n\nCaption: ${preview.caption}\n\n${preview.confirmation}`,
+              preview,
+            );
+          }
+        : unavailable,
     },
     {
       name: "publish_instagram_post",
@@ -142,7 +168,14 @@ export function createProductionServices(environment: NodeJS.ProcessEnv = proces
   const broker = new BrokerClient({
     baseUrl: environment.PIR2_META_OAUTH_BROKER_URL?.trim() || "https://meta-oauth.zie-agent.cloud/instagram",
   });
-  return { oauth: createProductionOAuthCoordinator(broker, new KeyringTokenStore()) };
+  const appData = platform() === "win32"
+    ? environment.APPDATA || join(homedir(), "AppData", "Roaming")
+    : join(homedir(), "Library", "Application Support");
+  return {
+    oauth: createProductionOAuthCoordinator(broker, new KeyringTokenStore()),
+    media: new MediaValidator(),
+    intents: new FileIntentStore(join(appData, "PiR2 Academy", "Instagram Publisher", "intents.json")),
+  };
 }
 
 export async function runStdioServer(): Promise<void> {

@@ -69,4 +69,32 @@ describe("Instagram Publisher tool contract", () => {
     expect(connect.content[0]).toMatchObject({ type: "text", text: expect.stringContaining("เชื่อม Instagram สำเร็จ") });
     expect(JSON.stringify([status, connect])).not.toContain("secret");
   });
+
+  it("prepares a source-backed preview without publishing", async () => {
+    let storedStatus = "";
+    const tools = createToolCatalog({
+      oauth: {
+        getCredential: async () => ({
+          accessToken: "secret",
+          userId: "17841400000000000",
+          username: "zie.agent.test",
+          expiresAt: "2026-10-08T03:00:00.000Z",
+          scopes: ["instagram_business_basic", "instagram_business_content_publish"],
+        }),
+        connect: async () => ({ userId: "17841400000000000", username: "zie.agent.test" }),
+      },
+      media: { validate: async () => ({ contentType: "image/png", contentLength: 1024 }) },
+      intents: {
+        get: async () => null,
+        put: async (intent) => { storedStatus = intent.status; },
+      },
+    });
+    const result = await tools[2]!.handler({
+      image_url: "https://cdn.example.com/design.png",
+      caption: "สินค้าใหม่",
+    });
+    expect(result.isError).not.toBe(true);
+    expect(result.content[0]).toMatchObject({ type: "text", text: expect.stringContaining("ยืนยันโพสต์") });
+    expect(storedStatus).toBe("prepared");
+  });
 });
