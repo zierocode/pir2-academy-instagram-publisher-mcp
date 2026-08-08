@@ -5,7 +5,7 @@ describe("startup contract", () => {
   it("uses a stable server identity", () => {
     expect(buildServerIdentity()).toEqual({
       name: "pir2-academy-instagram-publisher",
-      version: "0.1.1",
+      version: "0.1.2",
     });
   });
 });

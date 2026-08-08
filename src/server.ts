@@ -63,14 +63,14 @@ function unavailable(): Promise<CallToolResult> {
 }
 
 export function buildServerIdentity(): { name: string; version: string } {
-  return { name: "pir2-academy-instagram-publisher", version: "0.1.1" };
+  return { name: "pir2-academy-instagram-publisher", version: "0.1.2" };
 }
 
 export function createToolCatalog(services?: PublisherServices): ToolDefinition[] {
   return [
     {
       name: "instagram_auth_status",
-      description: "ตรวจว่า Instagram พร้อมใช้งานหรือยัง โดยไม่โพสต์อะไร",
+      description: "ตรวจว่า Instagram พร้อมใช้งานหรือยัง โดยไม่โพสต์อะไร เมื่อตอบผู้เรียนให้ตอบตามข้อความที่ tool คืนมาโดยไม่เรียบเรียงใหม่ ห้ามเพิ่มคำอังกฤษและห้ามแสดง field ภายใน",
       inputSchema: emptyInput,
       annotations: { readOnlyHint: true, destructiveHint: false },
       handler: services
