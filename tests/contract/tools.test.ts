@@ -65,9 +65,25 @@ describe("Instagram Publisher tool contract", () => {
     });
     const status = await tools[0]!.handler({});
     const connect = await tools[1]!.handler({});
-    expect(status.content[0]).toMatchObject({ type: "text", text: expect.stringContaining("พร้อมใช้งาน") });
+    expect(status.content[0]).toEqual({ type: "text", text: "Instagram พร้อมใช้งานแล้วครับ: @zie.agent.test" });
+    expect(status.structuredContent).toBeUndefined();
     expect(connect.content[0]).toMatchObject({ type: "text", text: expect.stringContaining("เชื่อม Instagram สำเร็จ") });
     expect(JSON.stringify([status, connect])).not.toContain("secret");
+  });
+
+  it("keeps disconnected status learner-facing instead of exposing raw state", async () => {
+    const tools = createToolCatalog({
+      oauth: {
+        getCredential: async () => null,
+        connect: async () => ({ userId: "17841400000000000" }),
+      },
+    });
+    const status = await tools[0]!.handler({});
+    expect(status.content[0]).toEqual({
+      type: "text",
+      text: "Instagram ยังไม่ได้เชื่อมครับ พิมพ์ `เชื่อม Instagram` เพื่อเริ่ม login ด้วย account ของผู้เรียนเอง",
+    });
+    expect(status.structuredContent).toBeUndefined();
   });
 
   it("prepares a source-backed preview without publishing", async () => {
