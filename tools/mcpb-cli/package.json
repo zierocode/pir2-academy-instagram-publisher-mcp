@@ -1,0 +1,6 @@
+{
+  "name": "pir2-academy-mcpb-tooling",
+  "private": true,
+  "dependencies": { "@anthropic-ai/mcpb": "2.1.2" },
+  "overrides": { "tmp": "0.2.7" }
+}
