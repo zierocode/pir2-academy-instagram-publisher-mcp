@@ -30,6 +30,8 @@ describe("Instagram Publisher tool contract", () => {
     const tools = createToolCatalog();
     expect(tools.map((tool) => tool.name)).toEqual(TOOL_NAMES);
     expect(tools.every((tool) => /[ก-๙]/u.test(tool.description))).toBe(true);
+    expect(tools[0]!.description).toContain("ตอบตามข้อความที่ tool คืนมาโดยไม่เรียบเรียงใหม่");
+    expect(tools[0]!.description).toContain("ห้ามแสดง field ภายใน");
   });
 
   it("marks only the final publish tool as destructive", () => {

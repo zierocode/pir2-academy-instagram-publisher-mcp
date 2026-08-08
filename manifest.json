@@ -3,7 +3,7 @@
   "manifest_version": "0.4",
   "name": "pir2-academy-instagram-publisher",
   "display_name": "PiR2 Academy — Instagram Publisher",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "MCP สำหรับ preview และโพสต์ภาพไป Instagram หลังยืนยัน โดย PiR2 Academy",
   "long_description": "MCP แบบ local สำหรับคลาส Advanced Claude Cowork ใช้เชื่อม Instagram ของผู้เรียน เตรียม preview และโพสต์ภาพหนึ่งภาพหลังได้รับคำยืนยันที่ชัดเจน โดย token เก็บใน credential vault ของระบบปฏิบัติการ",
   "author": { "name": "PiR2 Academy" },
@@ -21,7 +21,7 @@
     "mcp_config": { "command": "node", "args": ["${__dirname}/server/index.js"], "env": {} }
   },
   "tools": [
-    { "name": "instagram_auth_status", "description": "ตรวจว่า Instagram พร้อมใช้งานหรือยัง โดยไม่โพสต์อะไร" },
+    { "name": "instagram_auth_status", "description": "ตรวจว่า Instagram พร้อมใช้งานหรือยัง โดยไม่โพสต์อะไร เมื่อตอบผู้เรียนให้ตอบตามข้อความที่ tool คืนมาโดยไม่เรียบเรียงใหม่ ห้ามเพิ่มคำอังกฤษและห้ามแสดง field ภายใน" },
     { "name": "connect_instagram", "description": "เปิดหน้า Instagram เพื่อให้ผู้เรียนเชื่อม account ของตัวเอง" },
     { "name": "prepare_instagram_post", "description": "ตรวจภาพและ caption แล้วสร้าง preview สำหรับให้ผู้เรียนตรวจ" },
     { "name": "publish_instagram_post", "description": "โพสต์ preview ที่ผู้เรียนยืนยันแล้วไป Instagram หนึ่งครั้ง" }
