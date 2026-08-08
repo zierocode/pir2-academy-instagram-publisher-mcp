@@ -8,6 +8,13 @@ import {
   type ToolAnnotations,
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
+import { BrokerClient } from "./auth/broker-client.js";
+import {
+  createProductionOAuthCoordinator,
+  type InstagramIdentity,
+} from "./auth/oauth-coordinator.js";
+import { KeyringTokenStore } from "./auth/token-store-keyring.js";
+import type { InstagramCredential } from "./auth/token-store.js";
 import { errorResult, textResult } from "./contracts.js";
 
 type ToolHandler = (input: unknown, signal?: AbortSignal) => Promise<CallToolResult>;
@@ -18,6 +25,14 @@ export interface ToolDefinition {
   inputSchema: z.ZodType;
   annotations?: ToolAnnotations;
   handler: ToolHandler;
+}
+
+export interface PublisherServices {
+  oauth: {
+    getCredential(): Promise<InstagramCredential | null>;
+    connect(signal?: AbortSignal): Promise<InstagramIdentity>;
+    close?(): Promise<void>;
+  };
 }
 
 const emptyInput = z.object({}).strict();
@@ -41,21 +56,42 @@ export function buildServerIdentity(): { name: string; version: string } {
   return { name: "pir2-academy-instagram-publisher", version: "0.1.0" };
 }
 
-export function createToolCatalog(): ToolDefinition[] {
+export function createToolCatalog(services?: PublisherServices): ToolDefinition[] {
   return [
     {
       name: "instagram_auth_status",
       description: "ตรวจว่า Instagram พร้อมใช้งานหรือยัง โดยไม่โพสต์อะไร",
       inputSchema: emptyInput,
       annotations: { readOnlyHint: true, destructiveHint: false },
-      handler: unavailable,
+      handler: services
+        ? async () => {
+            const credential = await services.oauth.getCredential();
+            return credential
+              ? textResult(`Instagram พร้อมใช้งานแล้ว${credential.username ? `: @${credential.username}` : ""}`, {
+                  connected: true,
+                  user_id: credential.userId,
+                  username: credential.username,
+                  expires_at: credential.expiresAt,
+                })
+              : textResult("Instagram ยังไม่ได้เชื่อม พิมพ์ว่า เชื่อม Instagram เพื่อเริ่ม OAuth", { connected: false });
+          }
+        : unavailable,
     },
     {
       name: "connect_instagram",
       description: "เปิดหน้า Instagram เพื่อให้ผู้เรียนเชื่อม account ของตัวเอง",
       inputSchema: emptyInput,
       annotations: { readOnlyHint: false, destructiveHint: false },
-      handler: unavailable,
+      handler: services
+        ? async (_input, signal) => {
+            const identity = await services.oauth.connect(signal);
+            return textResult(`เชื่อม Instagram สำเร็จ${identity.username ? `: @${identity.username}` : ""}`, {
+              connected: true,
+              user_id: identity.userId,
+              username: identity.username,
+            });
+          }
+        : unavailable,
     },
     {
       name: "prepare_instagram_post",
@@ -102,8 +138,17 @@ export function createMcpServer(catalog: ToolDefinition[] = createToolCatalog())
   return server;
 }
 
+export function createProductionServices(environment: NodeJS.ProcessEnv = process.env): PublisherServices {
+  const broker = new BrokerClient({
+    baseUrl: environment.PIR2_META_OAUTH_BROKER_URL?.trim() || "https://meta-oauth.zie-agent.cloud/instagram",
+  });
+  return { oauth: createProductionOAuthCoordinator(broker, new KeyringTokenStore()) };
+}
+
 export async function runStdioServer(): Promise<void> {
-  const server = createMcpServer();
+  const services = createProductionServices();
+  const server = createMcpServer(createToolCatalog(services));
   const transport = new StdioServerTransport();
+  transport.onclose = () => { void services.oauth.close?.(); };
   await server.connect(transport);
 }

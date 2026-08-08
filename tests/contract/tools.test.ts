@@ -49,4 +49,24 @@ describe("Instagram Publisher tool contract", () => {
     expect(prepare?.inputSchema.safeParse({ image_url: "https://example.com/a.png", caption: "สวัสดี" }).success).toBe(true);
     expect(publish?.inputSchema.safeParse({ intent_id: "intent-1", confirmation_text: "ยืนยันโพสต์" }).success).toBe(true);
   });
+
+  it("returns Thai-first auth status and connect receipts", async () => {
+    const tools = createToolCatalog({
+      oauth: {
+        getCredential: async () => ({
+          accessToken: "secret",
+          userId: "17841400000000000",
+          username: "zie.agent.test",
+          expiresAt: "2026-10-08T03:00:00.000Z",
+          scopes: ["instagram_business_basic", "instagram_business_content_publish"],
+        }),
+        connect: async () => ({ userId: "17841400000000000", username: "zie.agent.test" }),
+      },
+    });
+    const status = await tools[0]!.handler({});
+    const connect = await tools[1]!.handler({});
+    expect(status.content[0]).toMatchObject({ type: "text", text: expect.stringContaining("พร้อมใช้งาน") });
+    expect(connect.content[0]).toMatchObject({ type: "text", text: expect.stringContaining("เชื่อม Instagram สำเร็จ") });
+    expect(JSON.stringify([status, connect])).not.toContain("secret");
+  });
 });
