@@ -8,10 +8,14 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "bundle": "node scripts/pack.mjs",
+    "bundle:verify": "node scripts/verify-bundle.mjs",
+    "bundle:test": "vitest run tests/integration/bundle.test.ts",
     "check": "npm run typecheck && npm test",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
     "smoke": "vitest run tests/smoke/startup.test.ts",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tests.json"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

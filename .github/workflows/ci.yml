@@ -19,3 +19,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - run: npm run scan:secrets
+      - run: npm audit --audit-level=high
+      - run: npm run bundle:test
