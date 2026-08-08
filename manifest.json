@@ -3,7 +3,7 @@
   "manifest_version": "0.4",
   "name": "pir2-academy-instagram-publisher",
   "display_name": "PiR2 Academy — Instagram Publisher",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "MCP สำหรับ preview และโพสต์ภาพไป Instagram หลังยืนยัน โดย PiR2 Academy",
   "long_description": "MCP แบบ local สำหรับคลาส Advanced Claude Cowork ใช้เชื่อม Instagram ของผู้เรียน เตรียม preview และโพสต์ภาพหนึ่งภาพหลังได้รับคำยืนยันที่ชัดเจน โดย token เก็บใน credential vault ของระบบปฏิบัติการ",
   "author": { "name": "PiR2 Academy" },

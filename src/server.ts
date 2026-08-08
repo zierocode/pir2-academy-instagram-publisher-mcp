@@ -63,7 +63,7 @@ function unavailable(): Promise<CallToolResult> {
 }
 
 export function buildServerIdentity(): { name: string; version: string } {
-  return { name: "pir2-academy-instagram-publisher", version: "0.1.2" };
+  return { name: "pir2-academy-instagram-publisher", version: "0.1.4" };
 }
 
 export function createToolCatalog(services?: PublisherServices): ToolDefinition[] {
@@ -164,7 +164,11 @@ export function createMcpServer(catalog: ToolDefinition[] = createToolCatalog())
     }
     try {
       return await tool.handler(parsed.data, extra.signal);
-    } catch {
+    } catch (error) {
+      console.error("[instagram-publisher] tool failed", {
+        tool: tool.name,
+        error: error instanceof Error ? error.message : "unknown error",
+      });
       return errorResult(`ทำรายการไม่สำเร็จ (รหัส ${randomUUID().slice(0, 8)})`, "INTERNAL_ERROR");
     }
   });
