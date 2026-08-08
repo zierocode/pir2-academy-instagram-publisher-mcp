@@ -19,8 +19,10 @@ import { KeyringTokenStore } from "./auth/token-store-keyring.js";
 import type { InstagramCredential } from "./auth/token-store.js";
 import { errorResult, textResult } from "./contracts.js";
 import { MediaValidator, type ValidatedMedia } from "./media/media-validator.js";
+import { InstagramClient } from "./instagram/instagram-client.js";
 import { FileIntentStore, type IntentStore } from "./posts/intent-store.js";
 import { preparePost } from "./posts/post-preview.js";
+import { PostPublisher, type PublishReceipt } from "./posts/publisher.js";
 
 type ToolHandler = (input: unknown, signal?: AbortSignal) => Promise<CallToolResult>;
 
@@ -40,6 +42,7 @@ export interface PublisherServices {
   };
   media?: { validate(url: string, signal?: AbortSignal): Promise<ValidatedMedia> };
   intents?: IntentStore;
+  publisher?: { publish(intentId: string, confirmationText: string): Promise<PublishReceipt> };
 }
 
 const emptyInput = z.object({}).strict();
@@ -131,7 +134,16 @@ export function createToolCatalog(services?: PublisherServices): ToolDefinition[
       description: "โพสต์ preview ที่ผู้เรียนยืนยันแล้วไป Instagram หนึ่งครั้ง",
       inputSchema: publishInput,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
-      handler: unavailable,
+      handler: services?.publisher
+        ? async (input) => {
+            const parsed = publishInput.parse(input);
+            const receipt = await services.publisher!.publish(parsed.intent_id, parsed.confirmation_text);
+            const duplicateMessage = receipt.duplicatePrevented
+              ? "คำสั่งนี้เคยโพสต์แล้ว จึงไม่สร้าง post ซ้ำ"
+              : "โพสต์สำเร็จ";
+            return textResult(`${duplicateMessage}: ${receipt.account} (Media ID: ${receipt.mediaId})`, receipt);
+          }
+        : unavailable,
     },
   ];
 }
@@ -171,10 +183,18 @@ export function createProductionServices(environment: NodeJS.ProcessEnv = proces
   const appData = platform() === "win32"
     ? environment.APPDATA || join(homedir(), "AppData", "Roaming")
     : join(homedir(), "Library", "Application Support");
+  const oauth = createProductionOAuthCoordinator(broker, new KeyringTokenStore());
+  const intents = new FileIntentStore(join(appData, "PiR2 Academy", "Instagram Publisher", "intents.json"));
+  const publisher = new PostPublisher({
+    store: intents,
+    instagram: new InstagramClient({ apiVersion: environment.PIR2_INSTAGRAM_API_VERSION?.trim() || "v23.0" }),
+    getCredential: () => oauth.getCredential(),
+  });
   return {
-    oauth: createProductionOAuthCoordinator(broker, new KeyringTokenStore()),
+    oauth,
     media: new MediaValidator(),
-    intents: new FileIntentStore(join(appData, "PiR2 Academy", "Instagram Publisher", "intents.json")),
+    intents,
+    publisher,
   };
 }
 

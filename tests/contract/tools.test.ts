@@ -87,6 +87,7 @@ describe("Instagram Publisher tool contract", () => {
       intents: {
         get: async () => null,
         put: async (intent) => { storedStatus = intent.status; },
+        update: async () => null,
       },
     });
     const result = await tools[2]!.handler({
@@ -96,5 +97,24 @@ describe("Instagram Publisher tool contract", () => {
     expect(result.isError).not.toBe(true);
     expect(result.content[0]).toMatchObject({ type: "text", text: expect.stringContaining("ยืนยันโพสต์") });
     expect(storedStatus).toBe("prepared");
+  });
+
+  it("passes the exact confirmation to the one-shot publisher", async () => {
+    const publish = async () => ({
+      intentId: "550e8400-e29b-41d4-a716-446655440000",
+      mediaId: "media-1",
+      account: "@zie.agent.test",
+      publishedAt: "2026-08-09T02:05:00.000Z",
+      duplicatePrevented: false,
+    });
+    const tools = createToolCatalog({
+      oauth: { getCredential: async () => null, connect: async () => ({ userId: "1" }) },
+      publisher: { publish },
+    });
+    const result = await tools[3]!.handler({
+      intent_id: "550e8400-e29b-41d4-a716-446655440000",
+      confirmation_text: "ยืนยันโพสต์",
+    });
+    expect(result.content[0]).toMatchObject({ type: "text", text: expect.stringContaining("โพสต์สำเร็จ") });
   });
 });

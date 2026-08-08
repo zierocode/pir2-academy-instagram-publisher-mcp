@@ -24,6 +24,7 @@ export type PostIntent = z.infer<typeof postIntentSchema>;
 export interface IntentStore {
   get(id: string): Promise<PostIntent | null>;
   put(intent: PostIntent): Promise<void>;
+  update(id: string, transform: (intent: PostIntent) => PostIntent): Promise<PostIntent | null>;
 }
 
 export class FileIntentStore implements IntentStore {
@@ -37,13 +38,28 @@ export class FileIntentStore implements IntentStore {
 
   put(intent: PostIntent): Promise<void> {
     const validated = postIntentSchema.parse(intent);
-    this.#queue = this.#queue.then(async () => {
+    const operation = this.#queue.then(async () => {
       const all = await this.readAll();
       const index = all.findIndex((candidate) => candidate.id === validated.id);
       if (index === -1) all.push(validated); else all[index] = validated;
       await this.writeAll(all);
     });
-    return this.#queue;
+    this.#queue = operation.catch(() => undefined);
+    return operation;
+  }
+
+  update(id: string, transform: (intent: PostIntent) => PostIntent): Promise<PostIntent | null> {
+    const operation = this.#queue.then(async (): Promise<PostIntent | null> => {
+      const all = await this.readAll();
+      const index = all.findIndex((candidate) => candidate.id === id);
+      if (index === -1) return null;
+      const updated = postIntentSchema.parse(transform(all[index]!));
+      all[index] = updated;
+      await this.writeAll(all);
+      return updated;
+    });
+    this.#queue = operation.then(() => undefined, () => undefined);
+    return operation;
   }
 
   private async readAll(): Promise<PostIntent[]> {
@@ -62,5 +78,21 @@ export class FileIntentStore implements IntentStore {
     const temporary = `${this.filePath}.${randomUUID()}.tmp`;
     await writeFile(temporary, `${JSON.stringify(intents)}\n`, { mode: 0o600, flag: "wx" });
     await rename(temporary, this.filePath);
+  }
+}
+
+export class InMemoryIntentStore implements IntentStore {
+  readonly #values = new Map<string, PostIntent>();
+  constructor(initial: PostIntent[] = []) {
+    for (const intent of initial) this.#values.set(intent.id, postIntentSchema.parse(intent));
+  }
+  async get(id: string): Promise<PostIntent | null> { return this.#values.get(id) ?? null; }
+  async put(intent: PostIntent): Promise<void> { this.#values.set(intent.id, postIntentSchema.parse(intent)); }
+  async update(id: string, transform: (intent: PostIntent) => PostIntent): Promise<PostIntent | null> {
+    const current = this.#values.get(id);
+    if (!current) return null;
+    const updated = postIntentSchema.parse(transform(current));
+    this.#values.set(id, updated);
+    return updated;
   }
 }

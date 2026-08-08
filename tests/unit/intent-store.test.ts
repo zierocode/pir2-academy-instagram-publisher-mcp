@@ -46,4 +46,18 @@ describe("post preview intents", () => {
     await expect(preparePost({ ...common, caption: "" })).rejects.toThrow("caption");
     await expect(preparePost({ ...common, caption: "x".repeat(2201) })).rejects.toThrow("2,200");
   });
+
+  it("keeps the file store usable after a rejected atomic transition", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "pir2-instagram-intent-"));
+    const store = new FileIntentStore(join(directory, "intents.json"));
+    const preview = await preparePost({
+      imageUrl: "https://cdn.example.com/a.png",
+      caption: "สินค้าใหม่",
+      identity: { userId: "1", username: "test" },
+      media: { contentType: "image/png", contentLength: 1 },
+      store,
+    });
+    await expect(store.update(preview.intentId, () => { throw new Error("reject transition"); })).rejects.toThrow("reject transition");
+    await expect(store.get(preview.intentId)).resolves.toMatchObject({ status: "prepared" });
+  });
 });
