@@ -63,7 +63,7 @@ function unavailable(): Promise<CallToolResult> {
 }
 
 export function buildServerIdentity(): { name: string; version: string } {
-  return { name: "pir2-academy-instagram-publisher", version: "0.1.0" };
+  return { name: "pir2-academy-instagram-publisher", version: "0.1.1" };
 }
 
 export function createToolCatalog(services?: PublisherServices): ToolDefinition[] {
@@ -77,13 +77,8 @@ export function createToolCatalog(services?: PublisherServices): ToolDefinition[
         ? async () => {
             const credential = await services.oauth.getCredential();
             return credential
-              ? textResult(`Instagram พร้อมใช้งานแล้ว${credential.username ? `: @${credential.username}` : ""}`, {
-                  connected: true,
-                  user_id: credential.userId,
-                  username: credential.username,
-                  expires_at: credential.expiresAt,
-                })
-              : textResult("Instagram ยังไม่ได้เชื่อม พิมพ์ว่า เชื่อม Instagram เพื่อเริ่ม OAuth", { connected: false });
+              ? textResult(`Instagram พร้อมใช้งานแล้วครับ${credential.username ? `: @${credential.username}` : ""}`)
+              : textResult("Instagram ยังไม่ได้เชื่อมครับ พิมพ์ `เชื่อม Instagram` เพื่อเริ่ม login ด้วย account ของผู้เรียนเอง");
           }
         : unavailable,
     },
