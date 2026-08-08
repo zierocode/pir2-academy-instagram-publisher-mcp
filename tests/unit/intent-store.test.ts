@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, stat } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -59,5 +59,20 @@ describe("post preview intents", () => {
     });
     await expect(store.update(preview.intentId, () => { throw new Error("reject transition"); })).rejects.toThrow("reject transition");
     await expect(store.get(preview.intentId)).resolves.toMatchObject({ status: "prepared" });
+  });
+
+  it("tightens an existing intent directory on POSIX", async () => {
+    if (process.platform === "win32") return;
+    const directory = await mkdtemp(join(tmpdir(), "pir2-instagram-intent-"));
+    await chmod(directory, 0o755);
+    const store = new FileIntentStore(join(directory, "intents.json"));
+    await preparePost({
+      imageUrl: "https://cdn.example.com/a.png",
+      caption: "สินค้าใหม่",
+      identity: { userId: "1" },
+      media: { contentType: "image/png", contentLength: 1 },
+      store,
+    });
+    expect((await stat(directory)).mode & 0o777).toBe(0o700);
   });
 });

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { z } from "zod";
 
@@ -75,6 +75,7 @@ export class FileIntentStore implements IntentStore {
   private async writeAll(intents: PostIntent[]): Promise<void> {
     const directory = dirname(this.filePath);
     await mkdir(directory, { recursive: true, mode: 0o700 });
+    if (process.platform !== "win32") await chmod(directory, 0o700);
     const temporary = `${this.filePath}.${randomUUID()}.tmp`;
     await writeFile(temporary, `${JSON.stringify(intents)}\n`, { mode: 0o600, flag: "wx" });
     await rename(temporary, this.filePath);
