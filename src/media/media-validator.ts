@@ -1,5 +1,5 @@
 import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import { isIP, type LookupFunction } from "node:net";
 import { request } from "node:https";
 
 export type SupportedImageType = "image/jpeg" | "image/png";
@@ -8,7 +8,12 @@ export interface ProbeResponse { status: number; headers: Record<string, string 
 
 interface ValidatorDependencies {
   resolve?: (hostname: string) => Promise<string[]>;
-  probe?: (url: URL, pinnedAddress: string, signal?: AbortSignal) => Promise<ProbeResponse>;
+  probe?: (
+    url: URL,
+    pinnedAddress: string,
+    signal?: AbortSignal,
+    method?: "GET",
+  ) => Promise<ProbeResponse>;
 }
 
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -16,7 +21,12 @@ const MAX_REDIRECTS = 3;
 
 export class MediaValidator {
   readonly #resolve: (hostname: string) => Promise<string[]>;
-  readonly #probe: (url: URL, pinnedAddress: string, signal?: AbortSignal) => Promise<ProbeResponse>;
+  readonly #probe: (
+    url: URL,
+    pinnedAddress: string,
+    signal?: AbortSignal,
+    method?: "GET",
+  ) => Promise<ProbeResponse>;
 
   constructor(dependencies: ValidatorDependencies = {}) {
     this.#resolve = dependencies.resolve ?? resolvePublicAddresses;
@@ -32,7 +42,7 @@ export class MediaValidator {
       if (addresses.length === 0 || addresses.some(isPrivateOrReservedIp)) {
         throw new Error("image URL ชี้ไป private หรือ reserved network ซึ่งไม่อนุญาต");
       }
-      const response = await this.#probe(current, addresses[0]!, signal);
+      const response = await this.#probe(current, addresses[0]!, signal, "GET");
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.location;
         if (!location || redirects === MAX_REDIRECTS) throw new Error("image URL redirect มากเกินไปหรือไม่สมบูรณ์");
@@ -44,7 +54,8 @@ export class MediaValidator {
       if (contentType !== "image/jpeg" && contentType !== "image/png") {
         throw new Error("ไฟล์ต้องเป็น JPEG หรือ PNG เท่านั้น");
       }
-      const contentLength = parseContentLength(response.headers["content-length"]);
+      const contentLength = parseRangeTotal(response.headers["content-range"])
+        ?? parseContentLength(response.headers["content-length"]);
       if (contentLength !== undefined && contentLength > MAX_BYTES) throw new Error("ไฟล์ภาพต้องไม่เกิน 8 MB");
       return { contentType, contentLength };
     }
@@ -66,6 +77,13 @@ function parseContentLength(value: string | undefined): number | undefined {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < 0) throw new Error("ขนาดไฟล์ภาพไม่ถูกต้อง");
   return parsed;
+}
+
+function parseRangeTotal(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const match = /^bytes\s+\d+-\d+\/(\d+)$/u.exec(value.trim());
+  if (!match) throw new Error("ขนาดไฟล์ภาพไม่ถูกต้อง");
+  return parseContentLength(match[1]);
 }
 
 async function resolvePublicAddresses(hostname: string): Promise<string[]> {
@@ -97,17 +115,26 @@ export function isPrivateOrReservedIp(address: string): boolean {
   return true;
 }
 
-function probePinnedHttps(url: URL, pinnedAddress: string, signal?: AbortSignal): Promise<ProbeResponse> {
+function probePinnedHttps(
+  url: URL,
+  pinnedAddress: string,
+  signal?: AbortSignal,
+  method: "GET" = "GET",
+): Promise<ProbeResponse> {
   return new Promise((resolve, reject) => {
     const req = request({
       protocol: "https:",
       hostname: url.hostname,
       servername: url.hostname,
       port: 443,
-      method: "HEAD",
+      method,
       path: `${url.pathname}${url.search}`,
-      headers: { accept: "image/jpeg,image/png", "user-agent": "PiR2-Academy-Instagram-Publisher/0.1" },
-      lookup: (_hostname, _options, callback) => callback(null, pinnedAddress, isIP(pinnedAddress)),
+      headers: {
+        accept: "image/jpeg,image/png",
+        range: "bytes=0-0",
+        "user-agent": "PiR2-Academy-Instagram-Publisher/0.1",
+      },
+      lookup: createPinnedLookup(pinnedAddress),
       signal,
       timeout: 10_000,
     }, (response) => {
@@ -115,11 +142,22 @@ function probePinnedHttps(url: URL, pinnedAddress: string, signal?: AbortSignal)
       for (const [name, value] of Object.entries(response.headers)) {
         headers[name.toLowerCase()] = Array.isArray(value) ? value[0] : value;
       }
-      response.resume();
       resolve({ status: response.statusCode ?? 0, headers });
+      response.destroy();
     });
     req.once("timeout", () => req.destroy(new Error("image URL timeout")));
     req.once("error", () => reject(new Error("เปิด image URL ไม่สำเร็จ")));
     req.end();
   });
+}
+
+export function createPinnedLookup(pinnedAddress: string): LookupFunction {
+  const family = isIP(pinnedAddress);
+  return (_hostname, options, callback) => {
+    if (options.all) {
+      callback(null, [{ address: pinnedAddress, family }]);
+      return;
+    }
+    callback(null, pinnedAddress, family);
+  };
 }

@@ -1,11 +1,13 @@
 {
   "name": "pir2-academy-instagram-publisher",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "MCP แบบ local สำหรับ preview และโพสต์ภาพไป Instagram โดย PiR2 Academy",
   "license": "MIT",
   "type": "module",
   "main": "./server/index.js",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "bundle": "node scripts/pack.mjs",
